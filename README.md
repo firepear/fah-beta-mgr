@@ -31,3 +31,23 @@ available under the [MIT license](https://opensource.org/license/MIT)
   make it the active binary
   - Repeat this whenever you want to check for a new beta
 - See `fah-beta-mgr help` and/or the rest of this document, for more options
+
+## (Some) More options
+
+### Update your FAH client
+
+If there's not a newer beta available, you'll see this:
+
+```
+$ ./fah-beta-mgr update
+checking for update... A binary and newest beta are both v8.5.5; nothing to do
+```
+
+### Check fbm status
+
+```
+$ fah-beta-mgr status
+fah-client is pointed to the A binary
+A binary: v8.5.5
+B binary: v8.5.4
+```
