@@ -52,6 +52,13 @@ FAH-A: v8.5.5
 FAH-B: v8.5.4
 ```
 
+### Switch binaries
+
+```
+$ sudo fah-beta-mgr switch
+switching fah-client... now pointed to FAH-B (v8.5.4)
+```
+
 ### Update FBM
 
 ```
