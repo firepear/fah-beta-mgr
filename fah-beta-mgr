@@ -128,43 +128,28 @@ function fbm_download () {
 }
 
 
-# fbm_version_check gets the version number of the current fah-client
-# binary and calls fbm_check_metadata to get the version of the most
-# recently released beta on the FAH website. when they match, it
-# returns the version number; when they don't match it calls
-# fah_download and returns the location of the newly-downloaded FAH
-# binary
-function fbm_version_check () {
-    old=$(/usr/bin/fah-client-a --version)
-    new=$(fbm_check_metadata)
-    if [[ "${new}" == "${old}" ]]; then
-        echo "${new}"
-        return
-    fi
-    fbm_download
-}
-
 # fbm_update calls fbm_version_check to test for new fah-client beta
 # releases. if it gets a valid value back then the fah-client binaries
 # are swapped around as appropriate, and the service is restarted.
 function fbm_update () {
     echo -n "checking for update... "
-    newfah=$(fbm_version_check)
-    if [[ "${newfah}" =~ ^[0-9] ]]; then
-        # a valid path will start with '/'; starting with a digit
-        # means we got a version number back
-        echo "FAH-A and the newest beta are both v${newfah}; nothing to do"
+    old=$(/usr/bin/fah-client-a --version)
+    new=$(fbm_check_metadata)
+    if [[ "${old}" == "${new}" ]]; then
+        echo "FAH-A and the newest beta are both v${old}; nothing to do"
         exit 0
     fi
     echo -n "v${new} available; updating... "
     fbm_whoami
+    # fbm_download does that, and also returns the path to the new fah
+    fahpath=$(fbm_download)
     systemctl stop fah-client
     if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
         # only overwrite the B binary if fah-client is pointed at the
         # A binary
         cp /usr/bin/fah-client-a /usr/bin/fah-client-b
     fi
-    mv "${newfah}" /usr/bin/fah-client-a
+    mv "${fahpath}" /usr/bin/fah-client-a
     rm /usr/bin/fah-client
     ln -s /usr/bin/fah-client-a /usr/bin/fah-client
     systemctl start fah-client
@@ -188,7 +173,7 @@ function fbm_selfupdate () {
     fbm_whoami
     cd /usr/local/bin
     curl --silent -LO "${self_url}fah-beta-mgr"
-    echo "new version of fbm found and updated"
+    echo "new version of fbm found and installed"
     exit 0
 }
 
@@ -280,11 +265,11 @@ function fbm_switch () {
     if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
         rm /usr/bin/fah-client
         ln -s /usr/bin/fah-client-b /usr/bin/fah-client
-        echo "now pointed to B binary (v$($/usr/bin/fah-client-b --version))"
+        echo "now pointed to FAH-B (v$(/usr/bin/fah-client-b --version))"
     else
         rm /usr/bin/fah-client
         ln -s /usr/bin/fah-client-a /usr/bin/fah-client
-        echo "now pointed to A binary (v$($/usr/bin/fah-client-a --version))"
+        echo "now pointed to FAH-A (v$(/usr/bin/fah-client-a --version))"
     fi
     systemctl start fah-client
 }
