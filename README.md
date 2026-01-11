@@ -1,8 +1,9 @@
 # fah-beta-mgr
 
-`fah-beta-mgr` is a `bash` script which manages FAH beta binaries, so
-you don't have to. It assumes that it's running in a
-`systemd`-flavored Linux distro. Here's what it does:
+`fah-beta-mgr` is a `bash` script which manages
+[FAH](https://foldingathome.org/) beta binaries, so you don't have
+to. It assumes that it's running in a `systemd`-flavored Linux
+distro. Here's what it does:
 
 - Maintains an A/B setup of `fah-client` binaries, which can be
   switched between at any time
