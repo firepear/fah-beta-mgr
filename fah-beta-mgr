@@ -1,0 +1,341 @@
+#!/bin/bash
+
+# Copyright 2025 Shawn Boyette <shawn@firepear.net>
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the “Software”), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+
+set -e
+declare -A cmds
+
+version="v0.6.0"
+latest_url="https://download.foldingathome.org/releases/beta/fah-client/debian-10-64bit/release/latest.tar.bz2"
+meta_url="https://download.foldingathome.org/releases/beta/fah-client/meta.json"
+self_url="https://firepear.net/tools/"
+
+
+##############################################################################
+
+
+# fbm_help prints the online help message
+function fbm_help () {
+    cat <<EOHELP
+usage: fah-beta-mgr COMMAND
+
+available commands:
+  update   check for new FAH beta; install and restart fah-client service if
+           available. saves the previous binary to make switching back easy
+
+  status   print the version numbers of the current and alternate binaries
+
+  switch   switch fah-client between pointing at the current binary and the
+           alternate binary
+
+  setup    do initial setup of fah-beta-mgr (binary twiddling and symlinking)
+
+  fbm-up   auto-update the FBM script
+
+  unsetup  makes current binary the canonical fah-client, then removes FBM
+
+  version  print the version number of FBM
+
+  help     print this message
+EOHELP
+    exit 0
+}
+
+
+# fbm_test_bins checks to see if the A and B clients exist, and if
+# fah-client is not a symlink. any of these is taken as a signal that
+# setup has not been run, so no other ops can proceed
+function fbm_test_bins () {
+    if [[ ! -e /usr/bin/fah-client-a ]] || [[ ! -e /usr/bin/fah-client-b ]]
+       [[ ! -L /usr/bin/fah-client ]]; then
+        echo "no"
+        return
+    fi
+    echo "yes"
+}
+
+
+# fbm_preqs checks that all utilities we may need are installed on the
+# system. it also checks for environmental factors (like being run as
+# root)
+function fbm_preqs () {
+    for cmd in curl xmllint jq sha512sum; do
+        missing="false"
+        cmds[${cmd}]=$(which "${cmd}") || true
+        if [[ "${cmds[${cmd}]}" == "" ]]; then
+            echo -n " '${cmd}' missing... "
+            missing="true"
+        fi
+    done
+    if [[ "${missing}" == "true" ]]; then
+        echo; echo "please install listed prerequisites"
+        exit 1
+    fi
+}
+
+
+# fbm_whoami checks that we're running as root, for operations that
+# need it
+function fbm_whoami () {
+    if [[ "$(whoami)" != "root" ]]; then
+        echo "this requiress root access to continue; please rerun with sudo"
+        exit 1
+    fi
+}
+
+# fbm_check_metadata pulls beta package metadata from the FAH website,
+# and uses `jq` to get the version number of release (aka non-debug)
+# debian package. that version number is returned to the caller
+function fbm_check_metadata () {
+    metadata=$(curl --silent  "${meta_url}")
+    major=$(echo "${metadata}" | jq -r '.[] | select(.worker == "debian-10-64bit") | select(.mode == "release") | .version[0]' | head -1)
+    minor=$(echo "${metadata}" | jq -r '.[] | select(.worker == "debian-10-64bit") | select(.mode == "release") | .version[1]' | head -1)
+    micro=$(echo "${metadata}" | jq -r '.[] | select(.worker == "debian-10-64bit") | select(.mode == "release") | .version[2]' | head -1)
+    echo "${major}.${minor}.${micro}"
+}
+
+
+# fbm_download downloads and unpacks the latest debian beta, get the
+# path to the fah-client binary from the tarball, and then returns it
+function fbm_download () {
+    mkdir /tmp/fah
+    cd /tmp/fah
+    curl --silent -LO "${latest_url}"
+    tar xf latest.tar.bz2
+    echo "/tmp/fah/$(ls -d fah-client*)/fah-client"
+}
+
+
+# fbm_version_check gets the version number of the current fah-client
+# binary and calls fbm_check_metadata to get the version of the most
+# recently released beta on the FAH website. when they match, it
+# returns the version number; when they don't match it calls
+# fah_download and returns the location of the newly-downloaded FAH
+# binary
+function fbm_version_check () {
+    old=$(/usr/bin/fah-client --version)
+    new=$(fbm_check_metadata)
+    if [[ "${new}" == "${old}" ]]; then
+        echo "${new}"
+        return
+    fi
+    fbm_download
+}
+
+# fbm_update calls fbm_version_check to test for new fah-client beta
+# releases. if it gets a valid value back then the fah-client binaries
+# are swapped around as appropriate, and the service is restarted.
+function fbm_update () {
+    echo -n "checking for update... "
+    newfah=$(fbm_version_check)
+    if [[ "${newfah}" =~ ^[0-9] ]]; then
+        # a valid path will start with '/'; starting with a digit
+        # means we got a version number back
+        echo "installed and current beta are both v${newfah}; nothing to do"
+        exit 0
+    fi
+    echo -n "v${new} available; updating... "
+    fbm_whoami
+    systemctl stop fah-client
+    if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
+        # only overwrite the B binary if fah-client is pointed at the
+        # A binary
+        cp /usr/bin/fah-client-a /usr/bin/fah-client-b
+    fi
+    mv "${newfah}" /usr/bin/fah-client-a
+    rm /usr/bin/fah-client
+    ln -s /usr/bin/fah-client-a /usr/bin/fah-client
+    systemctl start fah-client
+    rm -rf /tmp/fah
+    echo "done"
+}
+
+
+# fbm_selfupdate handles updating fah-beta-mgr itself. it generates a
+# SHA512 sum of the currently-installed script, and pulls the SHA512
+# of the script sitting on the firepear.net website. if they don't
+# match, the installed script is updated
+function fbm_selfupdate () {
+    echo -n "checking for fbm update... "
+    me=$(sha512sum /usr/local/bin/fah-beta-mgr | cut -d' ' -f1)
+    new=$(curl --silent "${self_url}fah-beta-mgr.sha512")
+    if [[ "${me}" == "${new}" ]]; then
+        echo "fbm already up to date"
+        exit 0
+    fi
+    fbm_whoami
+    cd /usr/local/bin
+    curl --silent -LO "${self_url}fah-beta-mgr"
+    echo "new version of fbm found and updated"
+    exit 0
+}
+
+
+# fbm_setup handles the inital setup of the A/B binary configuration
+# for fah-beta-mgr. if the script isn't already in /usr/local/bin
+# (presumably in the user's PATH), it's copied there and setup is
+# rerun. after that, a check is done to see if /usr/bin/fah-client is
+# already a symlink, in which case either setup has already run or
+# something else has twiddled fah-client
+#
+# if those checks pass, then the A/B config is created from the
+# existing fah-client binary, whatever it is, and the service is
+# restarted
+function fbm_setup () {
+    if [[ ! -f /usr/local/bin/fah-beta-mgr ]]; then
+        cp ./fah-beta-mgr /usr/local/bin
+        rm -- "${0}"
+        exec /usr/local/bin/fah-beta-mgr setup
+    fi
+    if [[ -L /usr/bin/fah-client ]]; then
+        echo "/usr/bin/fah-client is a symlink; either setup is done, or this system has"
+        echo "had fah-client altered manually or by another tool"
+        return
+    fi
+    echo -n "doing setup... "
+    if [[ "$(fbm_test_bins)" == "yes" ]]; then
+        echo "already done"
+        return
+    fi
+    systemctl stop fah-client
+    mv /usr/bin/fah-client /usr/bin/fah-client-a
+    cp /usr/bin/fah-client-a /usr/bin/fah-client-b
+    ln -s /usr/bin/fah-client-a /usr/bin/fah-client
+    systemctl start fah-client
+    echo "done"
+}
+
+
+# fbm_unsetup is the uninstall function. If /usr/bin/fah-client is a
+# symlink, it removes it and replaces it with the active binary. The
+# alternative binary is then removed and finally fbm-beta-mgr deletes
+# itself.
+function fbm_unsetup () {
+    systemctl stop fah-client
+    if [[ -L /usr/bin/fah-client ]]; then
+        active=$(readlink -f /usr/bin/fah-client)
+        echo "replacing /usr/bin/fah-client with active binary"
+        rm /usr/bin/fah-client
+        cp "${active}" /usr/bin/fah-client
+    else
+        echo "/usr/bin/fah-client is not a symlink; leaving it alone"
+    fi
+
+    echo "removing A/B binaries"
+    rm -f /usr/bin/fah-client-a /usr/bin/fah-client-b
+
+    if [[ -f /usr/local/bin/fah-beta-mgr ]]; then
+        echo "removing /usr/local/bin/fah-beta-mgr"
+        rm /usr/local/bin/fah-beta-mgr
+    else
+        echo "fah-beta-mgr is not installed"
+    fi
+    systemctl start fah-client
+    echo "done"
+    exit 0
+}
+
+
+# fbm_status is a user-informational function which checks the
+# versions of the binary pointed to by the fah-client symlink (aka
+# current), and whichever binary isn't pointed to (aka alternate)
+function fbm_status () {
+    if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
+        echo "fah-client is pointed to the A binary"
+    else
+        echo "fah-client is pointed to the B binary"
+    fi
+    echo "A binary: v$(/usr/bin/fah-client-a --version)"
+    echo "B binary: v$(/usr/bin/fah-client-b --version)"
+}
+
+
+# fbm_switch repoints the fah-client symlink from where it currently
+# is, to where it currently isn't
+function fbm_switch () {
+    echo -n "switching fah-client... "
+    systemctl stop fah-client
+    if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
+        rm /usr/bin/fah-client
+        ln -s /usr/bin/fah-client-b /usr/bin/fah-client
+        echo "now pointed to B binary (v$($/usr/bin/fah-client-b --version))"
+    else
+        rm /usr/bin/fah-client
+        ln -s /usr/bin/fah-client-a /usr/bin/fah-client
+        echo "now pointed to A binary (v$($/usr/bin/fah-client-a --version))"
+    fi
+    systemctl start fah-client
+}
+
+
+
+##############################################################################
+
+
+# always allow help messages
+if [[ "${1}" == "help" ]] || [[ "${1}" == "--help" ]] || [[ "${1}" == "-h" ]]; then
+    fbm_help
+fi
+
+# but refuse to do anything else, other than run setup, when
+# fbm_test_bins doesn't see the expected client binary config
+if [[ "$(fbm_test_bins)" == "no" ]] && [[ "${1}" != "setup" ]]; then
+    echo "fah-beta-mgr has not been setup on this system. please rerun with the 'setup'"
+    echo "command to do initial configuration (see 'help' for more info)"
+    exit 1
+fi
+
+# cleared fbm_test_bins, now we can check for deps and other
+# environmental factors
+fbm_preqs
+
+# all good: do whatever the user has asked
+case "${1}" in
+    "fbm-up")
+        fbm_selfupdate
+        ;;
+    "setup")
+        fbm_whoami
+        fbm_setup
+        ;;
+    "switch")
+        fbm_whoami
+        fbm_switch
+        ;;
+    "status")
+        fbm_status
+        ;;
+    "unsetup")
+        fbm_whoami
+        fbm_unsetup
+        ;;
+    "update" | "upgrade" | "up")
+        fbm_update
+        ;;
+    "version" | "-v")
+        echo "${version}"
+        ;;
+    *)
+        echo "command '${1}' not recognized; run 'fah-beta-mgr help' for options"
+esac
