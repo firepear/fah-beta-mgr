@@ -36,6 +36,13 @@ available under the [MIT license](https://opensource.org/license/MIT)
 
 ## (Some) More options
 
+### Update your FAH client
+
+```
+$ sudo ./fah-beta-mgr upgrade
+checking for update... v8.5.5 available; updating... done
+```
+
 ### Check FBM status
 
 ```
@@ -45,21 +52,13 @@ FAH-A: v8.5.5
 FAH-B: v8.5.4
 ```
 
-### Update your FAH client
-
-If there's not a newer beta available, you'll see this:
-
-```
-$ fah-beta-mgr update
-checking for update... FAH-A and the newest beta are both v8.5.5; nothing to do
-```
-
 ### Update FBM
 
 ```
-$ fah-beta-mgr fbm-up
-checking for fbm update... fbm already up to date
+$ fah-beta-mgr version
+v0.6.0
+$ sudo ./fah-beta-mgr fbm-up
+checking for fbm update... new version of fbm found and installed
+$ fah-beta-mgr version
+v0.7.0
 ```
-
-or
-
