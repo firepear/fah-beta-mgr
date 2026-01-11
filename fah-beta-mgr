@@ -1,5 +1,7 @@
 #!/bin/bash
 
+version="v0.7.0"
+
 # Copyright 2025 Shawn Boyette <shawn@firepear.net>
 #
 # Permission is hereby granted, free of charge, to any person
@@ -22,14 +24,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 set -e
 declare -A cmds
 
-version="v0.6.0"
 latest_url="https://download.foldingathome.org/releases/beta/fah-client/debian-10-64bit/release/latest.tar.bz2"
 meta_url="https://download.foldingathome.org/releases/beta/fah-client/meta.json"
-self_url="https://firepear.net/tools/"
+self_url="https://raw.githubusercontent.com/firepear/fah-beta-mgr/refs/heads/main/"
 
 
 ##############################################################################
@@ -43,6 +43,7 @@ usage: fah-beta-mgr COMMAND
 available commands:
   update   check for new FAH beta; install and restart fah-client service if
            available. saves the previous binary to make switching back easy
+           (also: upgrade, up)
 
   status   print the version numbers of the current and alternate binaries
 
@@ -51,13 +52,13 @@ available commands:
 
   setup    do initial setup of fah-beta-mgr (binary twiddling and symlinking)
 
-  fbm-up   auto-update the FBM script
-
   unsetup  makes current binary the canonical fah-client, then removes FBM
 
-  version  print the version number of FBM
+  fbm-up   auto-update the FBM script
 
-  help     print this message
+  version  print the version number of FBM (also: --version, -v)
+
+  help     print this message (also: --help, -h)
 EOHELP
     exit 0
 }
@@ -99,7 +100,7 @@ function fbm_preqs () {
 # need it
 function fbm_whoami () {
     if [[ "$(whoami)" != "root" ]]; then
-        echo "this requiress root access to continue; please rerun with sudo"
+        echo "this requires root access to continue; please rerun with sudo"
         exit 1
     fi
 }
@@ -134,7 +135,7 @@ function fbm_download () {
 # fah_download and returns the location of the newly-downloaded FAH
 # binary
 function fbm_version_check () {
-    old=$(/usr/bin/fah-client --version)
+    old=$(/usr/bin/fah-client-a --version)
     new=$(fbm_check_metadata)
     if [[ "${new}" == "${old}" ]]; then
         echo "${new}"
@@ -152,7 +153,7 @@ function fbm_update () {
     if [[ "${newfah}" =~ ^[0-9] ]]; then
         # a valid path will start with '/'; starting with a digit
         # means we got a version number back
-        echo "installed and current beta are both v${newfah}; nothing to do"
+        echo "FAH-A and the newest beta are both v${newfah}; nothing to do"
         exit 0
     fi
     echo -n "v${new} available; updating... "
@@ -184,6 +185,8 @@ function fbm_selfupdate () {
         echo "fbm already up to date"
         exit 0
     fi
+    echo "me  ${me}"
+    echo "new ${new}"
     fbm_whoami
     cd /usr/local/bin
     curl --silent -LO "${self_url}fah-beta-mgr"
@@ -262,12 +265,12 @@ function fbm_unsetup () {
 # current), and whichever binary isn't pointed to (aka alternate)
 function fbm_status () {
     if [[ "$(readlink -f /usr/bin/fah-client)" == "/usr/bin/fah-client-a" ]]; then
-        echo "fah-client is pointed to the A binary"
+        echo "fah-client is pointed to FAH-A"
     else
-        echo "fah-client is pointed to the B binary"
+        echo "fah-client is pointed to FAH-B"
     fi
-    echo "A binary: v$(/usr/bin/fah-client-a --version)"
-    echo "B binary: v$(/usr/bin/fah-client-b --version)"
+    echo "FAH-A: v$(/usr/bin/fah-client-a --version)"
+    echo "FAH-B: v$(/usr/bin/fah-client-b --version)"
 }
 
 
@@ -333,7 +336,7 @@ case "${1}" in
     "update" | "upgrade" | "up")
         fbm_update
         ;;
-    "version" | "-v")
+    "version" | "--version" | "-v")
         echo "${version}"
         ;;
     *)

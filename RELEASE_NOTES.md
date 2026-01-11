@@ -1,5 +1,13 @@
 ## Release notes
 
+**v0.7.0** (2026-01-11)
+
+- Now hosted on Github
+- `upgrade` now explicitly uses the A binary for version tests. This
+  fixes a logic hole which would have resulted in the B binary getting
+  clobbered if the `upgrade` command was run while it was active
+
+
 **v0.6.0** (2026-01-07)
 
 - Added `unsetup` command to cleanly remove FBM

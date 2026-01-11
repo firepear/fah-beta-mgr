@@ -23,7 +23,9 @@ available under the [MIT license](https://opensource.org/license/MIT)
 ## Getting started
 
 - Download the script [here](https://github.com/firepear/fah-beta-mgr/raw/refs/heads/main/fah-beta-mgr)
-- Give it a read first, if you like
+- Or [give it a read
+  first](https://github.com/firepear/fah-beta-mgr/blob/main/fah-beta-mgr),
+  if you like
 - As root, run `/path/to/fah-beta-mgr setup`
   - This will move the script to `/usr/local/bin` and do other
     setup tasks
@@ -34,20 +36,30 @@ available under the [MIT license](https://opensource.org/license/MIT)
 
 ## (Some) More options
 
+### Check FBM status
+
+```
+$ fah-beta-mgr status
+fah-client is pointed to FAH-A
+FAH-A: v8.5.5
+FAH-B: v8.5.4
+```
+
 ### Update your FAH client
 
 If there's not a newer beta available, you'll see this:
 
 ```
-$ ./fah-beta-mgr update
-checking for update... A binary and newest beta are both v8.5.5; nothing to do
+$ fah-beta-mgr update
+checking for update... FAH-A and the newest beta are both v8.5.5; nothing to do
 ```
 
-### Check fbm status
+### Update FBM
 
 ```
-$ fah-beta-mgr status
-fah-client is pointed to the A binary
-A binary: v8.5.5
-B binary: v8.5.4
+$ fah-beta-mgr fbm-up
+checking for fbm update... fbm already up to date
 ```
+
+or
+
