@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# this is the script that runs shellcheck and updates the sha file if
+# everything is clean
+
+shellcheck ./fah-beta-mgr
+if [[ "${?}" != "0" ]]; then
+    exit 1
+fi
+sha512sum ./fah-beta-mgr | cut -d' ' -f1 > ./fah-beta-mgr.sha512
