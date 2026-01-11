@@ -185,8 +185,6 @@ function fbm_selfupdate () {
         echo "fbm already up to date"
         exit 0
     fi
-    echo "me  ${me}"
-    echo "new ${new}"
     fbm_whoami
     cd /usr/local/bin
     curl --silent -LO "${self_url}fah-beta-mgr"
