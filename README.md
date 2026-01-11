@@ -36,7 +36,7 @@ available under the [MIT license](https://opensource.org/license/MIT)
 
 ## (Some) More options
 
-### Update your FAH client
+### Update the FAH client
 
 ```
 $ sudo fah-beta-mgr upgrade
