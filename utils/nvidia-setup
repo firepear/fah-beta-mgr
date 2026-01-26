@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ "${1}" == "" ]]; then
+    echo "usage is: nvidia-setup [WATTS]"
+    exit 1
+fi"
+sudo nvidia-smi -pm 1
+sudo nvidia-smi -pl "${1}"
+sudo systemctl restart fah-client

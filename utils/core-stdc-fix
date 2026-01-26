@@ -1,0 +1,11 @@
+#!/bin/bash
+libstdc=$(find /lib/ -name 'libstdc++.so.6' | head -1)
+
+if [[ -f /var/lib/fah-client/cores/openmm-core-22/fahcore-22-linux-64bit-release-0.0.20/libstdc++.so.6 ]]; then
+    rm -f /var/lib/fah-client/cores/openmm-core-22/fahcore-22-linux-64bit-release-0.0.20/libstdc++.so.6
+    ln -s ${libstdc} /var/lib/fah-client/cores/openmm-core-22/fahcore-22-linux-64bit-release-0.0.20/libstdc++.so.6
+fi
+if [[ -f /var/lib/fah-client/cores/openmm-core-23/centos-7.9.2009-64bit/release/fahcore-23-centos-7.9.2009-64bit-release-8.0.3/libstdc++.so.6 ]]; then
+    rm -f /var/lib/fah-client/cores/openmm-core-23/centos-7.9.2009-64bit/release/fahcore-23-centos-7.9.2009-64bit-release-8.0.3/libstdc++.so.6
+    ln -s ${libstdc} /var/lib/fah-client/cores/openmm-core-23/centos-7.9.2009-64bit/release/fahcore-23-centos-7.9.2009-64bit-release-8.0.3/libstdc++.so.6
+fi
